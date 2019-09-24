@@ -1,0 +1,31 @@
+{
+  "name": "@rootz/store",
+  "version": "1.0.0",
+  "description": "Centralised State Container for JavaScript Applications",
+  "main": "store.min.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rootzjs/store.git"
+  },
+  "keywords": [
+    "store",
+    "react",
+    "rootz",
+    "rootz",
+    "store",
+    "state",
+    "state",
+    "management",
+    "redux",
+    "alternative"
+  ],
+  "author": "Trishanth Naidu",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rootzjs/store/issues"
+  },
+  "homepage": "https://github.com/rootzjs/store#readme"
+}
