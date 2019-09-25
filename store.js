@@ -1,88 +1,136 @@
-"use strict";
+import React, { useState } from 'react';
 
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = void 0;
+const appState = {};
+const storeIdContainer = {};
+let componentStateHandler = {};
+let store = {};
+const setImmutableObject = (state, newState) => Object.assign({}, state, newState);
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-var appState = {};
-var storeIdContainer = {};
-var componentStateHandler = {};
-var store = {};
-
-var setImmutableObject = function setImmutableObject(state, newState) {
-    return Object.assign({}, state, newState);
-};
 /*
 * this function has been extracted from ReactJS, <component.prototype.setState> function.
 */
-
-var getEnqueueStateHandler = function getEnqueueStateHandler(scope) {
-    var enqueueStateHandler = function (partialState, callback) {
-        this.updater.enqueueSetState(this, partialState, callback, "setState");
-    }.bind(scope);
-
-    var onStoreUpdateHandler = function (branch) {
+const getEnqueueStateHandler = scope => {
+    const enqueueStateHandler = function (partialState, callback) {
+        this.updater.enqueueSetState(
+            this,
+            partialState,
+            callback,
+            "setState"
+        );
+    }.bind(scope)
+    const onStoreUpdateHandler = function (branch) {
         this.onStoreUpdate(appState[branch]);
-    }.bind(scope);
+    }.bind(scope)
+    return { enqueueStateHandler, onStoreUpdateHandler }
+}
 
-    return {
-        enqueueStateHandler: enqueueStateHandler,
-        onStoreUpdateHandler: onStoreUpdateHandler
-    };
-};
-
-var setStateHandler = function setStateHandler(scope, branch, state) {
-    var timestamp = new Date().getTime();
-    scope.state = {
-        __rootzStateHandlerVariable: 0
-    };
-    componentStateHandler = setImmutableObject(componentStateHandler, _defineProperty({}, branch, {
-        state: scope.state,
-        stateHandler: getEnqueueStateHandler(scope)
-    }));
-    updateAppState(branch, state);
-};
-
-var updateAppState = function updateAppState(branch, newState) {
-    appState[branch] = setImmutableObject(appState[branch], newState);
-};
-
-var executeHandler = function executeHandler(newState, branch) {
-    debugger;
-    var requestedBranch = componentStateHandler[branch];
-    var rootzStateHandlerVariable = requestedBranch.state.__rootzStateHandlerVariable;
-    updateAppState(branch, newState);
-    requestedBranch.stateHandler.onStoreUpdateHandler(branch);
-    requestedBranch.stateHandler.enqueueStateHandler({
-        __rootzStateHandlerVariable: rootzStateHandlerVariable + 1
+const setStateHandler = (scope, branch, state) => {
+    scope.state = { __rootzStateHandlerVariable: 0 };
+    componentStateHandler = setImmutableObject(componentStateHandler, {
+        [branch]: {
+            type: "class",
+            state: scope.state,
+            stateHandler: getEnqueueStateHandler(scope)
+        }
     });
-};
+    updateAppState(branch, state);
+}
+
+const setStateHandlerForHook = (WrapperComponent, branch, initialstate) => {
+    const stateHandlerVariable = { __rootzStateHandlerVariable: 0 };
+    const WrapperComponentFunc = props => {
+        const [state, setState] = useState({ ...stateHandlerVariable });
+
+        componentStateHandler[branch] = setImmutableObject(componentStateHandler[branch], {
+            stateHandler: setState
+        });
+
+        return <WrapperComponent props={props} state={appState[branch]} />
+    }
+    componentStateHandler = setImmutableObject(componentStateHandler, {
+        [branch]: {
+            type: "function",
+            state: stateHandlerVariable
+        }
+    });
+    updateAppState(branch, initialstate);
+
+    return WrapperComponentFunc;
+}
+
+const updateAppState = (branch, newState) => {
+    appState[branch] = setImmutableObject(appState[branch], newState);
+}
+
+const executeHandler = (newState, branch) => {
+    const requestedBranch = componentStateHandler[branch];
+    const rootzStateHandlerVariable = requestedBranch.state.__rootzStateHandlerVariable;
+    updateAppState(branch, newState);
+    if (!requestedBranch.hasOwnProperty("stateHandler")) {
+        console.error(`Property "${branch}" is defined in @rootzjs/store but not used, Please comment / remove the definition.`);
+        return;
+    }
+    requestedBranch.stateHandler.onStoreUpdateHandler(branch);
+    requestedBranch.stateHandler.enqueueStateHandler({ __rootzStateHandlerVariable: rootzStateHandlerVariable + 1 });
+}
+
+const executeHandlerForHook = (newState, branch) => {
+    const requestedBranch = componentStateHandler[branch];
+    const rootzStateHandlerVariable = requestedBranch.state.__rootzStateHandlerVariable;
+    updateAppState(branch, newState);
+    debugger;
+    if (!requestedBranch.hasOwnProperty("stateHandler")) {
+        console.error(`Property "${branch}" is defined in @rootzjs/store but not used, Please comment / remove the definition.`);
+        return;
+    }
+    requestedBranch.stateHandler({ __rootzStateHandlerVariable: rootzStateHandlerVariable + 1 });
+}
+
 /*
 * Intrinsic Functions - End
 */
 
-
-store.add = function (scope, id, state) {
-    if (scope.hasOwnProperty("props")) {
+store.add = function (scope, state, id = null) {
+    if (typeof scope === "function") {
+        // function
+        if (id === null) {
+            id = scope.name;
+        }
+        if (appState.hasOwnProperty(id)) {
+            console.error(`property "${id}" already exists in @rootzjs/store, Use "id" param from store.add(scope, state, id) { }, to provide a unique name / id`);
+            return;
+        }
+        return setStateHandlerForHook(scope, id, state);
+    } else {
         // class
+        if (id === null) {
+            id = scope.constructor.name;
+        }
+        if (appState.hasOwnProperty(id)) {
+            console.error(`property "${id}" already exists in @rootzjs/store, Use "id" param from store.add(scope, state, id) { }, to provide a unique name / id`);
+            return;
+        }
         setStateHandler(scope, id, state);
-    } else {// function
     }
 };
 
-store.update = function (id) {
-    return function (newState, newStateHandler) {
+store.update = id => (newState, newStateHandler) => {
+    const type = componentStateHandler[id].type;
+    if (type === "class") {
         if (newStateHandler && typeof newStateHandler === "function") {
-            executeHandler(newStateHandler(appState[id], newState), id);
+            executeHandler(newStateHandler(appState[id], newState), id)
         } else {
             executeHandler(newState || appState[id], id);
         }
-    };
-};
+    }
+    else if (type === "function") {
+        if (newStateHandler && typeof newStateHandler === "function") {
+            executeHandlerForHook(newStateHandler(appState[id], newState), id)
+        } else {
+            executeHandlerForHook(newState || appState[id], id);
+        }
+    }
+}
 
-var _default = store;
+export default store;
 
-exports.default = _default;

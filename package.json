@@ -1,6 +1,7 @@
 {
-  "name": "@rootz/store",
-  "version": "1.0.0",
+  "name": "@rootzjs/store",
+  "version": "1.0.1",
+  "private": false,
   "description": "Centralised State Container for JavaScript Applications",
   "main": "store.min.js",
   "scripts": {
