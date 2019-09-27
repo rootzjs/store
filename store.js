@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
+import Rootz, { accessKey } from './Rootz';
+/*
+* Variable Declarations - Start Here
+*/
+
+let store = {};
+let StoreManager = {};
+let defualtAppState = {};
+let componentStateHandler = {};
 
 const appState = {};
 const storeIdContainer = {};
-let componentStateHandler = {};
-let store = {};
+const key = "cf11ba19a142955fc417a9fb2e509749";
+
+/*
+* Variable Declarations - Ends Here
+*/
+
+/*
+* Intrinsic Functions - Start Here
+*/
+
 const setImmutableObject = (state, newState) => Object.assign({}, state, newState);
 
 /*
-* this function has been extracted from ReactJS, <component.prototype.setState> function.
+* @Important Note: this function has been extracted from ReactJS, <component.prototype.setState> function.
 */
 const getEnqueueStateHandler = scope => {
     const enqueueStateHandler = function (partialState, callback) {
@@ -19,19 +36,17 @@ const getEnqueueStateHandler = scope => {
         );
     }.bind(scope)
     const onStoreUpdateHandler = function (branch) {
-        this.onStoreUpdate(appState[branch]);
+        this.onStoreUpdate({ ...appState[branch], defualtAppState });
     }.bind(scope)
     return { enqueueStateHandler, onStoreUpdateHandler }
 }
 
 const setStateHandler = (scope, branch, state) => {
     scope.state = { __rootzStateHandlerVariable: 0 };
-    componentStateHandler = setImmutableObject(componentStateHandler, {
-        [branch]: {
-            type: "class",
-            state: scope.state,
-            stateHandler: getEnqueueStateHandler(scope)
-        }
+    updateComponentStateHandler(branch, {
+        type: "class",
+        state: scope.state,
+        stateHandler: getEnqueueStateHandler(scope)
     });
     updateAppState(branch, state);
 }
@@ -41,17 +56,15 @@ const setStateHandlerForHook = (WrapperComponent, branch, initialstate) => {
     const WrapperComponentFunc = props => {
         const [state, setState] = useState({ ...stateHandlerVariable });
 
-        componentStateHandler[branch] = setImmutableObject(componentStateHandler[branch], {
-            stateHandler: setState
+        updateComponentStateHandler(branch, {
+            "stateHandler": setState
         });
 
-        return <WrapperComponent props={props} state={appState[branch]} />
+        return <WrapperComponent props={props} state={{ ...appState[branch], defualtAppState }} />
     }
-    componentStateHandler = setImmutableObject(componentStateHandler, {
-        [branch]: {
-            type: "function",
-            state: stateHandlerVariable
-        }
+    updateComponentStateHandler(branch, {
+        "type": "function",
+        "state": stateHandlerVariable
     });
     updateAppState(branch, initialstate);
 
@@ -60,6 +73,10 @@ const setStateHandlerForHook = (WrapperComponent, branch, initialstate) => {
 
 const updateAppState = (branch, newState) => {
     appState[branch] = setImmutableObject(appState[branch], newState);
+}
+
+const updateComponentStateHandler = (branch, newStateHandler) => {
+    componentStateHandler[branch] = setImmutableObject(componentStateHandler[branch], newStateHandler);
 }
 
 const executeHandler = (newState, branch) => {
@@ -78,7 +95,6 @@ const executeHandlerForHook = (newState, branch) => {
     const requestedBranch = componentStateHandler[branch];
     const rootzStateHandlerVariable = requestedBranch.state.__rootzStateHandlerVariable;
     updateAppState(branch, newState);
-    debugger;
     if (!requestedBranch.hasOwnProperty("stateHandler")) {
         console.error(`Property "${branch}" is defined in @rootzjs/store but not used, Please comment / remove the definition.`);
         return;
@@ -87,10 +103,54 @@ const executeHandlerForHook = (newState, branch) => {
 }
 
 /*
-* Intrinsic Functions - End
+* Intrinsic Functions - Ends Here
 */
 
-store.add = function (scope, state, id = null) {
+/** 
+ * Store Manager, Rootz Accessible Functions for Future Development - Starts Here 
+*/
+
+StoreManager.setState = (id, state) => { updateAppState(id, state) }
+
+StoreManager.getState = id => ({ ...appState[id], defualtAppState });
+
+StoreManager.setHandler = (id, handler) => {
+    componentStateHandler[id] = setImmutableObject(componentStateHandler[id], {
+        stateHandler: handler
+    });
+}
+
+StoreManager.setHandlerVariable = (id, stateHandlerVariable) => {
+    componentStateHandler = setImmutableObject(componentStateHandler, {
+        [id]: {
+            type: "function",
+            state: stateHandlerVariable
+        }
+    });
+}
+
+StoreManager.requestUpdate = id => {
+    const requestedBranch = componentStateHandler[id];
+    const rootzStateHandlerVariable = requestedBranch.state.__rootzStateHandlerVariable;
+
+    requestedBranch.stateHandler({ __rootzStateHandlerVariable: rootzStateHandlerVariable + 1 });
+}
+
+StoreManager.setContext = defaultState => {
+    store.setDefualt(defaultState);
+}
+
+StoreManager.getContext = () => defualtAppState
+
+/** 
+ * Store Manager, Rootz Accessible Functions for Future Development - Ends Here 
+*/
+
+/* 
+* Client Side Accessible Functions - Starts Here  
+*/
+
+store.add = (scope, state, id = null) => {
     if (typeof scope === "function") {
         // function
         if (id === null) {
@@ -132,5 +192,16 @@ store.update = id => (newState, newStateHandler) => {
     }
 }
 
+store.setDefualt = defaultState => {
+    defualtAppState = setImmutableObject(defualtAppState, defaultState);
+}
+/** 
+ * Client Side Accessible Functions - Ends Here 
+*/
+
+
+
 export default store;
+
+export { StoreManager };
 
